@@ -2,15 +2,15 @@
 
 PyOpenAL provides OpenAL bindings for python as well as an interface to them.
 
-It also provides a simple way to play WAVE and even OGG Vorbis, OGG Opus and FLAC files, the latter ones if used together with [PyOgg](https://github.com/Zuzu-Typ/PyOgg).
+It also provides a simple way to play WAVE and - if [PyOgg](https://github.com/Zuzu-Typ/PyOgg) is installed - even OGG Vorbis, OGG Opus and FLAC files.
 
 You can install it using the PyPI:
 
 	pip install PyOpenAL
 
 	
-PyOpenAL requires a dynamic OpenAL library (e.g. OpenAL32.dll). 
-You can use the [official OpenAL library](http://www.openal.org/) (deprecated) or the much better sounding [OpenAL Soft library](http://kcat.strangesoft.net/openal.html), which is still actively developed (or any other OpenAL compatible library).
+PyOpenAL requires a shared OpenAL library (e.g. OpenAL32.dll), one of which the Windows distributions already come with ([OpenAL Soft](http://kcat.strangesoft.net/openal.html) by kcat). 
+You can use the [official OpenAL library](http://www.openal.org/) (deprecated) or any other compatible library, like the aforementioned [OpenAL Soft library](http://kcat.strangesoft.net/openal.html), which is still actively developed.
 
 PyOpenAL provides OpenAL bindings, as you would find them in C++, meaning you can follow any [OpenAL C++ tutorial](http://www.openal.org/documentation/) with Python.
 OpenAL's methods expect C types as arguments, which means you will have to convert Python's types to C types using [ctypes](https://docs.python.org/3/library/ctypes.html) if you want to use them directly.
@@ -20,33 +20,31 @@ I removed the support for ALUT, because it is basically impossible to build nowa
 
 ### Examples
 ##### Playing a wave file
+```python
+# import PyOpenAL (will require an OpenAL shared library)
+from openal import * 
 
-	# import PyOpenAL (will require an OpenAL library)
-	from openal import * 
+# import the time module, for sleeping during playback
+import time
+
+# open our wave file
+source = oalOpen("test.wav")
+
+# and start playback
+source.play()
+
+# check if the file is still playing
+while source.get_state() == AL_PLAYING:
+	# wait until the file is done playing
+	time.sleep(1)
 	
-	# import the time module, for sleeping during playback
-	import time
-
-	# open our wave file
-	source = oalOpen("test.wav")
-
-	# and start playback
-	source.play()
-
-	# check if the file is still playing
-	while source.get_state() == AL_PLAYING:
-		# wait until the file is done playing
-		time.sleep(1)
-		
-	# release resources (don't forget this)
-	oalQuit()
-	
+# release resources (don't forget this)
+oalQuit()
+```
 ##### Playing an OGG Opus file (with PyOgg)
-
+```python
+	# This requires PyOgg to be installed ( pip install pyogg )
 	from openal import * 
-	
-	# even though we use PyOgg, we don't have to import it ourselves, 
-	# PyOpenAL does that for us (if it can find it)
 	
 	import time
 	
@@ -59,14 +57,15 @@ I removed the support for ALUT, because it is basically impossible to build nowa
 		
 	# remember, don't forget to quit
 	oalQuit()
-		
+```
 ##### Streaming a file
-
+```python
 	from openal import *
 
-	# here we define how much data is supposed to be held at a time (for Vorbis and Opus files), in how many buffers
-	# this is set automatically, but you can set it yourself, if you can't update the stream frequently enough
+	# The following two lines are optional. You can use them, if you can't update the stream frequently enough
+	# This one specifies how much data is supposed to be stored in each buffer (only applies for OGG Vorbis and Opus files)
 	pyoggSetStreamBufferSize(4096*4)
+	# This one sets the maximum amount of buffers to be created at a time
 	oalSetStreamBufferCount(4)
 
 	sourceStream = oalStream("test.ogg")
@@ -82,26 +81,26 @@ I removed the support for ALUT, because it is basically impossible to build nowa
 		sourceStream.update()
 		
 	oalQuit()
-	
+```
 ### Using OpenAL functions
-
-	# here we only import OpenAL's functions 
-	# (in case you don't need / want PyOpenAL's functions / classes)
-	from openal._al import *
-	from openal._alc import *
+```python
+	# Here we only import OpenAL's functions 
+	# (in case you don't need or want PyOpenAL's functions and classes)
+	from openal.al import *
+	from openal.alc import *
 
 	[...]
 	
-	# it's as simple as that:
+	# It's as simple as that:
 	alDistanceModel(AL_INVERSE_DISTANCE_CLAMPED)
 	
-	# or a little more complicated, it really depends:
+	# Or a little more complicated, it really depends:
 	alSourceUnqueueBuffers(source_id, 1, ctypes.pointer(ctypes.c_uint(buffer_ids[id])))
 	
 	[...]
-
+```
 ### Reference (for PyOpenAL's own classes and functions)
-
+```python
 	<method> oalInit(device_specifier = None, context_attr_list = None) -> None
 		# initializes PyOpenAL
 		# this is called automatically, unless you set OAL_DONT_AUTO_INIT
@@ -205,13 +204,13 @@ I removed the support for ALUT, because it is basically impossible to build nowa
 		<float> Source.cone_outer_gain
 			# the source's current cone_outer_gain
 			
-		<numpy.ndarray> Source.position
+		<vec3> Source.position
 			# the source's current position (use .x, .y, and .z to access it's items or .toTuple())
 			
-		<numpy.ndarray> Source.velocity
+		<vec3> Source.velocity
 			# the source's current velocity (use .x, .y, and .z to access it's items or .toTuple())
 			
-		<numpy.ndarray> Source.direction
+		<vec3> Source.direction
 			# the source's current velocity (use .x, .y, and .z to access it's items or .toTuple())
 			
 		<bool> Source.relative
@@ -347,3 +346,4 @@ I removed the support for ALUT, because it is basically impossible to build nowa
 			
 		# The other methods and variables are the same as in Source 
 		# (note that you can't loop, because the file can be read only once (by now))
+```

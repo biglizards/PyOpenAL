@@ -1,5 +1,5 @@
-from ._al import *
-from ._alc import *
+from .al import *
+from .alc import *
 
 import ctypes, numpy
 
@@ -8,7 +8,7 @@ import os, sys
 try:
     from pyogg import *
     PYOGG_AVAIL = PYOGG_OGG_AVAIL
-except ImportError:
+except:
     PYOGG_AVAIL = False
 
 try:
@@ -93,13 +93,13 @@ def oalGetInit():
 
     return bool(_oaldevice) and bool(_oalcontext)
 
-def _nlError():
+def _alError():
     _err("PyOpenAL wasn't loaded yet, please run oalInit() first")
 
 def _check():
     if not oalGetInit():
         if OAL_DONT_AUTO_INIT:
-            _nlError()
+            _alError()
         else:
             oalInit()
 
@@ -360,18 +360,23 @@ class StreamBuffer:
 
         self.stream = stream
 
-        self._count = count
+        self.count = 0
 
         self._exitsts = True
 
         for id_ in range(count):
-            self.fill_buffer(id_)
+            if self.fill_buffer(id_): self.count += 1
 
-        self.last_buffer = count - 1
+        if self.count < count:
+            count_diff = count - self.count
+            alDeleteBuffers(count_diff, ctypes.cast(ctypes.pointer((ctypes.c_uint * count_diff)(*self.buffer_ids[-count_diff:])), ctypes.POINTER(ctypes.c_uint)))
+            self.buffer_ids = (ctypes.c_uint * self.count)(*self.buffer_ids[:self.count])
+
+        self.last_buffer = self.count - 1
 
     def destroy(self):
         if self._exitsts:
-            alDeleteBuffers(self._count, ctypes.cast(ctypes.pointer(self.buffer_ids), ctypes.POINTER(ctypes.c_uint)))
+            alDeleteBuffers(self.count, ctypes.cast(ctypes.pointer(self.buffer_ids), ctypes.POINTER(ctypes.c_uint)))
             self._exitsts = False
 
     def fill_buffer(self, id_):
@@ -695,7 +700,7 @@ class SourceStream(Source):
 
         self._continue = True
 
-        alSourceQueueBuffers(self.id, OAL_STREAM_BUFFER_COUNT, self.buffer.buffer_ids)
+        alSourceQueueBuffers(self.id, self.buffer.count, self.buffer.buffer_ids)
 
     def update(self):
         """update() -> bool
@@ -712,7 +717,7 @@ class SourceStream(Source):
 
             for buf_id in range(buffers_processed.value):
                 unqueue = self.buffer.last_buffer + 1
-                if unqueue >= OAL_STREAM_BUFFER_COUNT:
+                if unqueue >= self.buffer.count:
                     unqueue = 0
 
                 alSourceUnqueueBuffers(self.id, 1, ctypes.pointer(_to_c_uint(self.buffer.buffer_ids[unqueue])))
@@ -724,7 +729,7 @@ class SourceStream(Source):
 
                     self.buffer.last_buffer += 1
 
-                    if self.buffer.last_buffer >= OAL_STREAM_BUFFER_COUNT:
+                    if self.buffer.last_buffer >= self.buffer.count:
                         self.buffer.last_buffer = 0
                 else:
                     self._continue = False
@@ -735,7 +740,7 @@ class SourceStream(Source):
 
             for buf_id in range(buffers_processed.value):
                 unqueue = self.buffer.last_buffer + 1
-                if unqueue >= OAL_STREAM_BUFFER_COUNT:
+                if unqueue >= self.buffer.count:
                     unqueue = 0
                 try:
                     alSourceUnqueueBuffers(self.id, 1, ctypes.pointer(_to_c_uint(self.buffer.buffer_ids[unqueue])))

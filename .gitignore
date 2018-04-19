@@ -1,17 +1,16 @@
 *~
 *.pyc
 *.dll
-test_.py
-vorbis.py
 *.opus
-pyogg/ogg.py
-pyogg/opus.py
-pyogg/__init__.py
-test.py
 *.ogg
-pypi/*
+*.bat
 *.wav
-*.whl
-*.gz
-test 2.py
-Doppler test.py
+*.pyd
+pyogg/
+pyogg/
+pyogg/
+build/
+dist/
+PyOpenAL.egg-info/
+tests/
+
