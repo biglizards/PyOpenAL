@@ -100,7 +100,7 @@ oalQuit()
 	[...]
 ```
 ### Reference (for PyOpenAL's own classes and functions)
-```python
+```
 	<method> oalInit(device_specifier = None, context_attr_list = None) -> None
 		# initializes PyOpenAL
 		# this is called automatically, unless you set OAL_DONT_AUTO_INIT
