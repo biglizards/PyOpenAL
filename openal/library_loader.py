@@ -36,14 +36,14 @@ class ExternalLibrary:
             _loaded_libraries[name] = lib
             return lib
         else:
-            lib = ExternalLibrary.load_windows(name, paths)
+            lib = ExternalLibrary.load_other(name, paths)
             _loaded_libraries[name] = lib
             return lib
 
     @staticmethod
     def load_other(name, paths = None):
         library = ctypes.util.find_library(name)
-        if library and os.path.isfile(library):
+        if library:
             return ctypes.CDLL(library)
 
         if paths:
