@@ -18,7 +18,7 @@ setup(
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.7.1a1',
+    version='0.7.3a1',
 
     description='OpenAL integration for Python',
     long_description=open(path.join(here, 'README.md')).read(),

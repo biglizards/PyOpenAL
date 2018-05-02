@@ -1,7 +1,7 @@
 from .al import *
 from .alc import *
 
-import ctypes, numpy
+import ctypes, numpy, warnings
 
 import os, sys
 
@@ -46,6 +46,9 @@ ALdouble = ctypes.c_double
 _items = []
 
 class OalError(Exception):
+    pass
+
+class OalWarning(Warning):
     pass
 
 def _err(msg):
@@ -364,6 +367,8 @@ class StreamBuffer:
 
         self._exitsts = True
 
+        self.done = False
+
         for id_ in range(count):
             if self.fill_buffer(id_): self.count += 1
 
@@ -387,6 +392,7 @@ class StreamBuffer:
                 alBufferData(_to_c_uint(self.buffer_ids[id_]),  _channels_to_al(self.stream.channels), buffer_, _to_c_int(buffer_size), _to_c_int(self.stream.frequency))
                 return True
             else:
+                self.done = True
                 return False
 
 class Source:
@@ -702,6 +708,18 @@ class SourceStream(Source):
 
         alSourceQueueBuffers(self.id, self.buffer.count, self.buffer.buffer_ids)
 
+    def get_state(self):
+        """get_state() -> int
+        returns the current state of the source.
+        (e.g. AL_PLAYING, AL_STOPPED, AL_INITIAL)"""
+        value = ctypes.c_int()
+        alGetSourcei(self.id, AL_SOURCE_STATE, value)
+        
+        if value.value == AL_STOPPED and self.buffer.done != True:
+            warnings.warn(OalWarning("stream buffer suffocated. Please increase the stream buffer count!"))
+            
+        return value.value
+
     def update(self):
         """update() -> bool
         loads some new data into the buffers (if required)
@@ -885,6 +903,7 @@ def oalSetStreamBufferCount(val):
     """oalSetStreamBufferCount(int) -> None
     how many buffers each stream has at a time (at least 2)
     (default is 2)"""
+    assert val >= 2, "there have to be at least two StreamBuffers"
     global OAL_STREAM_BUFFER_COUNT
     OAL_STREAM_BUFFER_COUNT = val
 
