@@ -43,7 +43,8 @@ ALenum = ctypes.c_int32
 ALfloat = ctypes.c_float
 ALdouble = ctypes.c_double
 
-_items = []
+_sources = []
+_buffers = []
 
 class OalError(Exception):
     pass
@@ -330,12 +331,15 @@ def _channels_to_al(ch):
 
 class Buffer:
     def __init__(self, *args):
+        global _buffers
         _check()
         self._exitsts = True
         self.id = ctypes.c_uint()
         alGenBuffers(1, ctypes.pointer(self.id))
 
         self.fill(*args)
+
+        _buffers.append(self)
 
     def _geti(self):
         return ctypes.c_int(self.id.value)
@@ -344,9 +348,11 @@ class Buffer:
         return self.id
 
     def destroy(self):
+        global _buffers
         if self._exitsts:
             alDeleteBuffers(1, ctypes.pointer(self.id))
             self._exitsts = False
+            _buffers.remove(self)
 
     def fill(self, *args):
         if len(args) == 1:
@@ -357,6 +363,7 @@ class Buffer:
 
 class StreamBuffer:
     def __init__(self, stream, count):
+        global _buffers
         self.buffer_ids = (ctypes.c_uint * count)()
 
         alGenBuffers(count, ctypes.cast(ctypes.pointer(self.buffer_ids), ctypes.POINTER(ctypes.c_uint)))
@@ -379,10 +386,14 @@ class StreamBuffer:
 
         self.last_buffer = self.count - 1
 
+        _buffers.append(self)
+
     def destroy(self):
+        global _buffers
         if self._exitsts:
             alDeleteBuffers(self.count, ctypes.cast(ctypes.pointer(self.buffer_ids), ctypes.POINTER(ctypes.c_uint)))
             self._exitsts = False
+            _buffers.remove(self)
 
     def fill_buffer(self, id_):
         if self._exitsts:
@@ -396,13 +407,15 @@ class StreamBuffer:
                 return False
 
 class Source:
-    def __init__(self, buffer_ = None):
-        global _items
+    def __init__(self, buffer_ = None, destroy_buffer = False):
+        global _sources
         _check()
         self.id = ctypes.c_uint()
         alGenSources(1, ctypes.pointer(self.id))
 
         self._exitsts = True
+
+        self.destroy_buffer = destroy_buffer
 
         self.pitch = 1.
 
@@ -441,7 +454,7 @@ class Source:
         if buffer_:
             self._set_buffer(buffer_)
 
-        _items.append(self)
+        _sources.append(self)
 
     def get(self, enum):
         """get(int enum) -> value
@@ -501,17 +514,20 @@ class Source:
                 alSourcefv(self.id, ctypes.c_int(enum), (ctypes.c_float*6)(*numpy.array(value, dtype=ctypes.c_float)))
 
     def destroy(self):
+        global _sources
         """destroy() -> None
         deletes the buffers and sources.
         (this is called by oalQuit() automatically)"""
         if self.get_state() == AL_PLAYING:
             self.stop()
-        try:
-            self.buffer.destroy()
-        except:
-            pass
+        if self.destroy_buffer:
+            try:
+                self.buffer.destroy()
+            except:
+                pass
         if self._exitsts:
             alDeleteSources(1, ctypes.pointer(self.id))
+            _sources.remove(self)
             self._exitsts = False
 
     def set_pitch(self, value):
@@ -663,12 +679,14 @@ class Source:
 
 class SourceStream(Source):
     def __init__(self, stream):
-        global _items
+        global _sources
         _check()
         self.id = ctypes.c_uint()
         alGenSources(1, ctypes.pointer(self.id))
 
         self._exitsts = True
+
+        self.destroy_buffer = True
 
         self.pitch = 1.
 
@@ -707,6 +725,8 @@ class SourceStream(Source):
         self._continue = True
 
         alSourceQueueBuffers(self.id, self.buffer.count, self.buffer.buffer_ids)
+
+        _sources.append(self)
 
     def get_state(self):
         """get_state() -> int
@@ -778,15 +798,17 @@ def oalQuit():
     """oalQuit() -> None
     destroys all sources and buffers and closes the
     PyOpenAL context and device."""
-    global _oaldevice, _oalcontext, _items
-    for item in _items:
-        item.destroy()
+    global _oaldevice, _oalcontext, _sources, _buffers
+    for source in _sources:
+        source.destroy()
+    for buffer in _buffers:
+        buffer.destroy()
     if _oalcontext:
         alcDestroyContext(_oalcontext)
     if _oaldevice:
         alcCloseDevice(_oaldevice)
     _oalcontext = _oaldevice = None
-    _items = []
+    _sources = []
 
 if PYOGG_AVAIL or WAVE_AVAIL:
     def oalOpen(path, ext_hint=None):
@@ -823,7 +845,7 @@ if PYOGG_AVAIL or WAVE_AVAIL:
             
         buffer_ = Buffer(file_)
 
-        source = Source(buffer_)
+        source = Source(buffer_, True)
 
         return source
 
