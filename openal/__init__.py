@@ -516,7 +516,7 @@ class Source:
     def destroy(self):
         global _sources
         """destroy() -> None
-        deletes the buffers and sources.
+        deletes the sources.
         (this is called by oalQuit() automatically)"""
         if self.get_state() == AL_PLAYING:
             self.stop()
