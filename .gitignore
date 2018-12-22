@@ -17,3 +17,4 @@ tests/
 examples/attenuation_example.py
 examples/play_wave.py
 examples/stream_file.py
+examples/Doppler test.py

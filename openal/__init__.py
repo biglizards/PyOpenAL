@@ -1,7 +1,7 @@
 from .al import *
 from .alc import *
 
-import ctypes, numpy, warnings
+import ctypes, warnings
 
 import os, sys
 
@@ -21,6 +21,8 @@ try:
     long
 except:
     long = int
+
+tuple_add3 = lambda a,b: (a[0]+b[0], a[1]+b[1], a[2]+b[2])
 
 OAL_DONT_AUTO_INIT = False
 
@@ -111,21 +113,23 @@ def _no_pyogg_error(*args, **kw):
     _err("You have to set up pyogg in order to use this function. Go to https://github.com/Zuzu-Typ/PyOgg to get it")
 
 def _to_val(value):
-    if type(value) in (float, bool, numpy.ndarray):
+    if type(value) in (float, bool, tuple):
         return value
-    elif type(value) in (int,):
+    elif type(value) == int:
         return float(value)
-    elif type(value) in (ctypes.c_float*3,):
-        return numpy.array(value)
-    elif type(value) in (ctypes.c_float*6,):
-        return numpy.array(value)
+    elif type(value) == ctypes.c_float*3:
+        return tuple(value)
+    elif type(value) == ctypes.c_float*6:
+        return tuple(value)
     elif type(value) in (ctypes.c_float, ctypes.c_int, ctypes.c_uint):
         return value.value
-    elif type(value) in (tuple, list):
-        if len(value) == 3:
-            return numpy.array(value)
-        elif len(value) == 6:
-            return numpy.array(value)
+    else:
+        try:
+            if len(value) == 3:
+                return tuple(value)
+            elif len(value) == 6:
+                return tuple(value)
+        except: pass
 
 if WAVE_AVAIL:
     class WaveFile:
@@ -197,9 +201,9 @@ class Listener:
     you can retrieve it with oalGetListener()"""
     def __init__(self):
         self.gain = 0.
-        self.position = numpy.array((0.,0.,0.), dtype=ctypes.c_float)
-        self.orientation = numpy.array((0.,0.,-1.,0.,1.,0.), dtype=ctypes.c_float)
-        self.velocity = numpy.array((0.,0.,0.), dtype=ctypes.c_float)
+        self.position = (0.,0.,0.)
+        self.orientation = (0.,0.,-1.,0.,1.,0.)
+        self.velocity = (0.,0.,0.)
 
     def get(self, enum):
         """get(int enum) -> value
@@ -232,22 +236,23 @@ class Listener:
         which will also update the instance variables (e.g. gain)"""
         if type(value) in (float,):
             alListenerf(ctypes.c_int(enum), ctypes.c_float(value))
-        elif type(value) == numpy.ndarray:
-            alListenerfv(ctypes.c_int(enum), (ctypes.c_float*len(value))(*value))
         elif type(value) in (ctypes.c_float*3, ctypes.c_float*6):
             alListenerfv(ctypes.c_int(enum), value)
-        elif type(value) in (tuple, list):
-            if len(value) == 3:
-                alListenerfv(ctypes.c_int(enum), (ctypes.c_float*3)(*numpy.array(value, dtype=ctypes.c_float)))
-            elif len(value) == 6:
-                alListenerfv(ctypes.c_int(enum), (ctypes.c_float*6)(*numpy.array(value, dtype=ctypes.c_float)))
+        else:
+            try:
+                value = tuple(value)
+                if len(value) == 3:
+                    alListenerfv(ctypes.c_int(enum), (ctypes.c_float*3)(*value))
+                elif len(value) == 6:
+                    alListenerfv(ctypes.c_int(enum), (ctypes.c_float*6)(*value))
+            except: pass
 
     def move(self, vec3):
         """move(tuple or list vec3) -> None
         moves the Listener by vec3 (dx, dy, dz).
         default position is vec3( 0, 0, 0 )"""
         try:
-            self.position += vec3
+            self.position = tuple_add3(self.position, vec3)
             self.set(AL_POSITION, self.position)
         except:
             _err("Unsupported argument for move: {}".format(vec3))
@@ -256,8 +261,9 @@ class Listener:
         """move_to(tuple or list vec3) -> None
         moves the Listener to vec3 (x,y,z).
         default is vec3( 0, 0, 0 )"""
+        assert len(vec3) == 3, "Argument has to be of length 3"
         try:
-            self.position = numpy.array(vec3, dtype=ctypes.c_float)
+            self.position = tuple(vec3)
             self.set(AL_POSITION, self.position)
         except:
             _err("Unsupported argument for move_to: {}".format(vec3))
@@ -266,8 +272,9 @@ class Listener:
         """set_position(tuple or list vec3) -> None
         moves the Listener to vec3 (x,y,z).
         default is vec3( 0, 0, 0 )"""
+        assert len(vec3) == 3, "Argument has to be of length 3"
         try:
-            self.position = numpy.array(vec3, dtype=ctypes.c_float)
+            self.position = tuple(vec3)
             self.set(AL_POSITION, self.position)
         except:
             _err("Unsupported argument for set_position: {}".format(vec3))
@@ -277,8 +284,9 @@ class Listener:
         sets the Listener's orientation to vec6.
         (frontX, frontY, frontZ, upX, upY, upZ)
         default is vec6( 0, 0, -1, 0, 1, 0 )"""
+        assert len(vec6) == 6, "Argument has to be of length 6"
         try:
-            self.orientation = numpy.array(vec6, dtype=ctypes.c_float)
+            self.orientation = tuple(vec6)
             self.set(AL_ORIENTATION, self.orientation)
         except:
             _err("Unsupported argument for set_orientation: {}".format(vec6))
@@ -287,8 +295,9 @@ class Listener:
         """set_velocity(tuple or list vec3)
         sets the velocity of the Listener to vec3.
         default is vec3( 0, 0, 0 )"""
+        assert len(vec3) == 3, "Argument has to be of length 3"
         try:
-            self.velocity = numpy.array(vec3, dtype=ctypes.c_float)
+            self.velocity = tuple(vec3)
             self.set(AL_VELOCITY, self.velocity)
         except:
             _err("Unsupported argument for set_velocity: {}".format(vec3))
@@ -437,13 +446,13 @@ class Source:
 
         self.cone_outer_angle = 360.
 
-        self.position = numpy.array((0.,0.,0.),dtype=ctypes.c_float)
+        self.position = (0.,0.,0.)
 
-        self.velocity = numpy.array((0.,0.,0.),dtype=ctypes.c_float)
+        self.velocity = (0.,0.,0.)
 
         self.looping = False
 
-        self.direction = numpy.array((0.,0.,0.),dtype=ctypes.c_float)
+        self.direction = (0.,0.,0.)
 
         self.source_relative = False
 
@@ -503,16 +512,17 @@ class Source:
             alSourcef(self.id, ctypes.c_int(enum), ctypes.c_float(value))
         elif type(value) in (int, bool):
             alSourcei(self.id, ctypes.c_int(enum), ctypes.c_int(value))
-        elif type(value) == numpy.ndarray:
-            alSourcefv(self.id, ctypes.c_int(enum), (ctypes.c_float*len(value))(*value))
         elif type(value) in (ctypes.c_float*3, ctypes.c_float*6):
             alSourcefv(self.id,ctypes.c_int(enum), value)
-        elif type(value) in (tuple, list):
-            if len(value) == 3:
-                alSourcefv(self.id, ctypes.c_int(enum), (ctypes.c_float*3)(*numpy.array(value, dtype=ctypes.c_float)))
-            elif len(value) == 6:
-                alSourcefv(self.id, ctypes.c_int(enum), (ctypes.c_float*6)(*numpy.array(value, dtype=ctypes.c_float)))
-
+        else:
+            try:
+                value = tuple(value)
+                if len(value) == 3:
+                    alSourcefv(self.id, ctypes.c_int(enum), (ctypes.c_float*3)(*value))
+                elif len(value) == 6:
+                    alSourcefv(self.id, ctypes.c_int(enum), (ctypes.c_float*6)(*value))
+            except: pass
+            
     def destroy(self):
         global _sources
         """destroy() -> None
@@ -708,13 +718,13 @@ class SourceStream(Source):
 
         self.cone_outer_angle = 360.
 
-        self.position = numpy.array((0.,0.,0.),dtype=ctypes.c_float)
+        self.position = (0.,0.,0.)
 
-        self.velocity = numpy.array((0.,0.,0.),dtype=ctypes.c_float)
+        self.velocity = (0.,0.,0.)
 
         self.looping = False
 
-        self.direction = numpy.array((0.,0.,0.),dtype=ctypes.c_float)
+        self.direction = (0.,0.,0.)
 
         self.source_relative = False
 
