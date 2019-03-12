@@ -140,14 +140,15 @@ if WAVE_AVAIL:
 
             self.frequency = self.file_.getframerate()
             
-            self.buffer = b""
+            temp_buffer = []
 
             change = 1
 
             while change:
                 new_buf = self.file_.readframes(4096*8)
                 change = len(new_buf)
-                self.buffer += new_buf
+                temp_buffer.append(new_buf)
+            self.buffer = b"".join(temp_buffer)
 
             self.buffer_length = len(self.buffer)
 
@@ -172,24 +173,24 @@ if WAVE_AVAIL:
             """get_buffer() -> bytesBuffer, bufferLength"""
             if not self.exists:
                 return None
-            buffer = b""
+            buffer = []
+            buffer_size = 0
             
             while True:
                 new_bytes = self.file_.readframes(WAVE_STREAM_BUFFER_SIZE*self.channels)
                 
-                if buffer:
-                    buffer += new_bytes
-                else:
-                    buffer = new_bytes
+                buffer.append(new_bytes)
+                buffer_size += len(new_bytes)
 
-                if len(new_bytes) == 0 or len(buffer) >= WAVE_STREAM_BUFFER_SIZE*self.channels:
+                if len(new_bytes) == 0 or buffer_size >= WAVE_STREAM_BUFFER_SIZE*self.channels:
                     break
 
             if len(buffer) == 0:
                 self.clean_up()
                 return(None)
 
-            return(buffer, len(buffer))
+            buffer_bytes = b"".join(buffer)
+            return(buffer_bytes, len(buffer_bytes))
 else:
     class WaveFile:
         def __init__(*args, **kw):
