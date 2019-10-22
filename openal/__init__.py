@@ -7,7 +7,7 @@ import os, sys
 
 try:
     from pyogg import *
-    PYOGG_AVAIL = PYOGG_OGG_AVAIL
+    PYOGG_AVAIL = (PYOGG_OGG_AVAIL and PYOGG_VORBIS_AVAIL and PYOGG_VORBIS_FILE_AVAIL) or (PYOGG_OPUS_AVAIL and PYOGG_OPUS_FILE_AVAIL) or PYOGG_FLAC_AVAIL
 except:
     PYOGG_AVAIL = False
 
